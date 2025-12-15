@@ -1,0 +1,48 @@
+﻿services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+
+  features:
+    build:
+      context: .
+      dockerfile: ./features/Dockerfile
+    depends_on:
+      - rabbitmq
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+
+  model:
+    build:
+      context: .
+      dockerfile: ./model/Dockerfile
+    depends_on:
+      - rabbitmq
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+
+  metric:
+    build:
+      context: .
+      dockerfile: ./metric/Dockerfile
+    depends_on:
+      - rabbitmq
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+    volumes:
+      - ./logs:/app/logs
+
+  plot:
+    build:
+      context: .
+      dockerfile: ./plot/Dockerfile
+    depends_on:
+      - metric
+    volumes:
+      - ./logs:/app/logs
