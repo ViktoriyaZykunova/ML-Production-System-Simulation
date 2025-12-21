@@ -1,0 +1,64 @@
+import json
+import os
+
+import pika
+from sklearn.datasets import load_diabetes
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+
+RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
+
+
+def train_model():
+    data = load_diabetes()
+    X_train, X_test, y_train, y_test = train_test_split(
+        data.data, data.target, test_size=0.2, random_state=42
+    )
+    model = LinearRegression()
+    model.fit(X_train, y_train)
+    return model
+
+
+def main():
+    model = train_model()
+
+    connection = pika.BlockingConnection(
+        pika.ConnectionParameters(host=RABBITMQ_HOST)
+    )
+    channel = connection.channel()
+
+    channel.queue_declare(queue="features", durable=False)
+    channel.queue_declare(queue="y_pred", durable=False)
+
+    def callback(ch, method, properties, body):
+        msg = json.loads(body.decode("utf-8"))
+        message_id = msg["id"]
+        x = msg["body"]
+
+        pred = float(model.predict([x])[0])
+
+        msg_y_pred = {
+            "id": message_id,
+            "body": pred,
+        }
+
+        channel.basic_publish(
+            exchange="",
+            routing_key="y_pred",
+            body=json.dumps(msg_y_pred).encode("utf-8"),
+            properties=pika.BasicProperties(content_type="application/json"),
+        )
+        print(f"[model] predicted id={message_id}, y_pred={pred}")
+
+    channel.basic_consume(
+        queue="features",
+        on_message_callback=callback,
+        auto_ack=True,
+    )
+
+    print("[model] waiting for messages...")
+    channel.start_consuming()
+
+
+if __name__ == "__main__":
+    main()
