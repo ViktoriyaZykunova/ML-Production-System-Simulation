@@ -1,0 +1,61 @@
+import json
+import time
+from datetime import datetime
+
+import pika
+from sklearn.datasets import load_diabetes
+import numpy as np
+import os
+
+RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
+
+
+def main():
+    data = load_diabetes()
+    X = data.data
+    y = data.target
+    n_samples = X.shape[0]
+
+    connection = pika.BlockingConnection(
+        pika.ConnectionParameters(host=RABBITMQ_HOST)
+    )
+    channel = connection.channel()
+
+    channel.queue_declare(queue="features", durable=False)
+    channel.queue_declare(queue="y_true", durable=False)
+
+    i = 0
+    while True:
+        idx = np.random.randint(0, n_samples)
+
+        message_id = datetime.timestamp(datetime.now())
+
+        msg_features = {
+            "id": message_id,
+            "body": X[idx].tolist(),
+        }
+        msg_y_true = {
+            "id": message_id,
+            "body": float(y[idx]),
+        }
+
+        channel.basic_publish(
+            exchange="",
+            routing_key="features",
+            body=json.dumps(msg_features).encode("utf-8"),
+            properties=pika.BasicProperties(content_type="application/json"),
+        )
+        channel.basic_publish(
+            exchange="",
+            routing_key="y_true",
+            body=json.dumps(msg_y_true).encode("utf-8"),
+            properties=pika.BasicProperties(content_type="application/json"),
+        )
+
+        i += 1
+        print(f"[features] sent sample #{i}, id={message_id}")
+        time.sleep(2)
+
+
+if __name__ == "__main__":
+    main()
