@@ -23,8 +23,8 @@ docker compose up --build
 Мониторинг в реальном времени осуществяется через RabbitMQ Management UI:
 RabbitMQ Management UI: http://localhost:15672 (guest/guest)
 Смотрим очереди features, y_true, y_pred в реальном времени.
-**Метрики:** logs/metric_log.csv — растёт с каждой итерацией
-**Визуализация:** logs/error_distribution.png — обновляется каждые 3 секунды
+**Метрики:** logs/metric_log.csv - растет с каждой итерацией
+**Визуализация:** logs/error_distribution.png - обновляется каждые 3 секунды
 
 
 **Структура проекта** (файлы распередены по веткам в репозитории)
